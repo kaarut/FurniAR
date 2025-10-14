@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Furniture AR Viewer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for a cleaner UI and font setup */
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f7f7f9; /* Light background */
+            color: #1f2937; /* Dark gray text */
+        }
+        /* Custom model-viewer styling to ensure it takes up maximum space */
+        model-viewer {
+            width: 100%;
+            height: 70vh; /* Takes up 70% of the viewport height */
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: box-shadow 0.3s ease-in-out;
+        }
+        model-viewer:hover {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .product-button {
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+        .product-button.active {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.5); /* Blue shadow for active */
+            border-color: #3b82f6;
+        }
+    </style>
+    <!-- Load Google's Model Viewer library -->
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <!-- Use Inter font family -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-4xl flex-grow">
+        
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-gray-800">AR Furniture Showroom</h1>
+            <p class="text-gray-500 mt-2">Tap 'View in your space' to see the furniture in real-time AR.</p>
+        </header>
+
+        <!-- Model Viewer Container -->
+        <model-viewer 
+            id="product-viewer"
+            src="https://modelviewer.dev/assets/ShopifyModels/Chair.glb" 
+            alt="A beautiful chair model"
+            ar 
+            ar-modes="webxr scene-viewer quick-look"
+            camera-controls 
+            shadow-intensity="1"
+            interaction-prompt="auto"
+            class="mb-6"
+        >
+            <!-- Loading template for accessibility and user experience -->
+            <div id="loading-overlay" slot="progress-bar" class="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center rounded-xl">
+                <div class="flex items-center space-x-2">
+                    <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-blue-600 font-medium">Loading model...</span>
+                </div>
+            </div>
+            <!-- The button to trigger AR mode, Model Viewer handles its placement and icon -->
+            <button slot="ar-button" id="ar-button" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-full transition duration-300 ease-in-out shadow-lg flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                </svg>
+                View in your space
+            </button>
+        </model-viewer>
+
+        <!-- Product Selector -->
+        <div class="p-4 bg-white rounded-xl shadow-md">
+            <h2 class="text-xl font-semibold mb-3">Choose a Product:</h2>
+            <div id="product-list" class="flex flex-wrap gap-4 justify-center">
+                <!-- Buttons will be populated here by JS -->
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- JavaScript for functionality -->
+    <script>
+        // Updated model URLs to use very stable, reliable demo assets
+        const products = [
+            // Using a high-quality, stable demo model (Draco compressed mesh)
+            { id: 'chair', name: 'Premium Office Chair', src: 'https://modelviewer.dev/shared-assets/models/Draco.glb', thumbnail: 'https://placehold.co/80x80/2563eb/ffffff?text=Chair' },
+            // Using a reliable animated asset (Fox)
+            { id: 'sofa', name: 'Large Sectional Sofa', src: 'https://modelviewer.dev/assets/ShopifyModels/Mixer.glb', thumbnail: 'https://placehold.co/80x80/059669/ffffff?text=Mixer' },
+            // Using a reliable static asset (Apollo Lander)
+            { id: 'table', name: 'Rustic Coffee Table', src: 'https://modelviewer.dev/assets/ShopifyModels/GeoPlanter.glb', thumbnail: 'https://placehold.co/80x80/ef4444/ffffff?text=Cactus' }
+        ];
+
+        const viewer = document.getElementById('product-viewer');
+        const productList = document.getElementById('product-list');
+
+        // Set the initial product ID to match the new default model
+        let currentProductId = 'chair';
+
+        // Function to create product buttons
+        function createProductButtons() {
+            products.forEach(product => {
+                const button = document.createElement('button');
+                // Use the updated product name for alt text when finding the model details
+                const productNameForAlt = products.find(p => p.id === product.id).name; 
+
+                button.className = `product-button flex flex-col items-center p-3 w-32 border-2 border-transparent rounded-lg text-sm font-medium focus:outline-none hover:bg-gray-100 transition-all ${product.id === currentProductId ? 'active bg-blue-50 border-blue-400' : 'bg-white'}`;
+                button.setAttribute('data-id', product.id);
+                button.onclick = () => switchProduct(product.id, product.src, productNameForAlt);
+
+                const img = document.createElement('img');
+                img.src = product.thumbnail;
+                img.alt = product.name;
+                img.className = 'w-16 h-16 rounded-lg mb-1 object-cover';
+                
+                const span = document.createElement('span');
+                span.textContent = product.name;
+
+                button.appendChild(img);
+                button.appendChild(span);
+                productList.appendChild(button);
+            });
+            updateActiveButton();
+        }
+
+        // Function to switch the model
+        function switchProduct(id, src, name) {
+            if (id === currentProductId) return;
+
+            // Show loading overlay temporarily while model changes
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+            }
+
+            // Update viewer source and alt text
+            viewer.src = src;
+            viewer.alt = `3D model of a ${name}`;
+            currentProductId = id;
+
+            updateActiveButton();
+
+            // Hide loading overlay once the model is loaded (Model Viewer handles the 'load' event)
+            viewer.addEventListener('load', () => {
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'none';
+                }
+            }, { once: true });
+        }
+
+        // Function to manage the active state of buttons
+        function updateActiveButton() {
+            document.querySelectorAll('.product-button').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-50', 'border-blue-400');
+                btn.classList.add('bg-white');
+                if (btn.getAttribute('data-id') === currentProductId) {
+                    btn.classList.add('active', 'bg-blue-50', 'border-blue-400');
+                }
+            });
+        }
+        
+        // Initial setup
+        window.onload = function() {
+            createProductButtons();
+            
+            // Hide the initial loading overlay once the default model is loaded
+            viewer.addEventListener('load', () => {
+                const loadingOverlay = document.getElementById('loading-overlay');
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'none';
+                }
+            }, { once: true });
+        };
+        
+        // Handle case where AR is not supported (optional but good practice)
+        viewer.addEventListener('ar-status', (event) => {
+            const arButton = document.getElementById('ar-button');
+            if (event.detail.status === 'not-presenting' && event.detail.error === 'no-ar-in-browser') {
+                if(arButton) {
+                    arButton.textContent = 'AR Not Supported on this Device';
+                    arButton.disabled = true;
+                    arButton.classList.replace('bg-blue-600', 'bg-gray-400');
+                    arButton.classList.replace('hover:bg-blue-700', 'hover:bg-gray-400');
+                }
+            }
+        });
+        
+    </script>
+
+</body>
+</html>
